@@ -689,9 +689,9 @@ void NotesWnd::ToggleLock()
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void NotesWnd::SaveCurrentText(int _type, bool _wantUndo) 
+void NotesWnd::SaveCurrentText(int _type, bool _wantUndo)
 {
-	switch(_type) 
+	switch(_type)
 	{
 		case SNM_NOTES_PROJECT:
 			SaveCurrentProjectNotes(_wantUndo);
@@ -699,8 +699,8 @@ void NotesWnd::SaveCurrentText(int _type, bool _wantUndo)
 		case SNM_NOTES_PROJECT_EXTRA:
 			SaveCurrentExtraProjectNotes(_wantUndo);
 			break;
-		case SNM_NOTES_ITEM: 
-			SaveCurrentItemNotes(_wantUndo); 
+		case SNM_NOTES_ITEM:
+			SaveCurrentItemNotes(_wantUndo);
 			break;
 		case SNM_NOTES_TRACK:
 			SaveCurrentTrackNotes(_wantUndo);
@@ -755,7 +755,7 @@ void NotesWnd::SaveCurrentItemNotes(bool _wantUndo)
 		if (GetSetMediaItemInfo(g_mediaItemNote, "P_NOTES", g_lastText))
 		{
 //				UpdateItemInProject(g_mediaItemNote);
-			UpdateTimeline(); // for the item's note button 
+			UpdateTimeline(); // for the item's note button
 			if (_wantUndo)
 				Undo_OnStateChangeEx2(NULL, __LOCALIZE("Edit item notes","sws_undo"), UNDO_STATE_ALL, -1); //JFB TODO? -1 to replace? UNDO_STATE_ITEMS?
 			else
@@ -770,7 +770,7 @@ void NotesWnd::SaveCurrentTrackNotes(bool _wantUndo)
 	{
 		GetWindowText(m_edit, g_lastText, sizeof(g_lastText));
 		bool found = false;
-		for (int i=0; i < g_SNM_TrackNotes.Get()->GetSize(); i++) 
+		for (int i=0; i < g_SNM_TrackNotes.Get()->GetSize(); i++)
 		{
 			if (g_SNM_TrackNotes.Get()->Get(i)->GetTrack() == g_trNote)
 			{
@@ -836,7 +836,7 @@ void NotesWnd::SaveCurrentMkrRgnNameOrSub(int _type, bool _wantUndo)
 		{
 			// CRLF removed only when saving the project..
 			bool found = false;
-			for (int i=0; i < g_pRegionSubs.Get()->GetSize(); i++) 
+			for (int i=0; i < g_pRegionSubs.Get()->GetSize(); i++)
 			{
 				if (g_pRegionSubs.Get()->Get(i)->GetId() == g_lastMarkerRegionId) {
 					g_pRegionSubs.Get()->Get(i)->SetNotes(g_lastText);
@@ -932,7 +932,7 @@ void NotesWnd::Update(bool _force)
 			break;
 #endif
 	}
-	
+
 	if (_force || refreshType == REQUEST_REFRESH)
 		RefreshGUI();
 
@@ -944,8 +944,8 @@ int NotesWnd::UpdateActionHelp()
 {
 	int refreshType = NO_REFRESH;
 	int iSel = GetSelectedAction(
-		g_lastActionSection, SNM_MAX_SECTION_NAME_LEN, &g_lastActionListCmd, 
-		g_lastActionCustId, SNM_MAX_ACTION_CUSTID_LEN, 
+		g_lastActionSection, SNM_MAX_SECTION_NAME_LEN, &g_lastActionListCmd,
+		g_lastActionCustId, SNM_MAX_ACTION_CUSTID_LEN,
 		g_lastActionDesc, SNM_MAX_ACTION_NAME_LEN);
 
 	if (iSel >= 0)
@@ -987,7 +987,7 @@ int NotesWnd::UpdateItemNotes()
 			if (char* notes = (char*)GetSetMediaItemInfo(g_mediaItemNote, "P_NOTES", NULL))
 				SetText(notes, false);
 			refreshType = REQUEST_REFRESH;
-		} 
+		}
 	}
 	else if (g_mediaItemNote || *g_lastText)
 	{
@@ -1016,7 +1016,7 @@ int NotesWnd::UpdateTrackNotes()
 			g_SNM_TrackNotes.Get()->Add(new SNM_TrackNotes(nullptr, TrackToGuid(g_trNote), ""));
 			SetText("");
 			refreshType = REQUEST_REFRESH;
-		} 
+		}
 	}
 	else if (g_trNote || *g_lastText)
 	{
@@ -1207,7 +1207,7 @@ bool GetStringFromNotesChunk(WDL_FastString* _notesIn, char* _bufOut, int _bufOu
 		int i=0; while (pNotes[i] && pNotes[i] != '|') i++;
 		if (pNotes[i]) i++;
 		else return true;
-	
+
 		int j=0;
 		while (pNotes[i] && j < _bufOutSz)
 		{
@@ -1233,9 +1233,9 @@ bool GetNotesChunkFromString(const char* _bufIn, WDL_FastString* _notesOut, cons
 		int i=0;
 		while (_bufIn[i])
 		{
-			if (_bufIn[i] == '\n') 
+			if (_bufIn[i] == '\n')
 				_notesOut->Append("\n|");
-			else if (_bufIn[i] != '\r') 
+			else if (_bufIn[i] != '\r')
 				_notesOut->Append(_bufIn+i, 1);
 			i++;
 		}
@@ -1279,7 +1279,7 @@ void NotesMarkerRegionListener::NotifyMarkerRegionUpdate(int _updateFlags)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// import/export subtitle files, only SubRip (.srt) files atm
+// import/export subtitle files, only SubRip (.srt) and Advanced SubStation Alpha (.ass) files atm
 // see http://en.wikipedia.org/wiki/SubRip#Specifications
 
 bool ImportSubRipFile(const char* _fn)
@@ -1290,6 +1290,14 @@ bool ImportSubRipFile(const char* _fn)
 	// no need to check extension here, it's done for us
 	if (FILE* f = fopenUTF8(_fn, "rt"))
 	{
+        char bom[4];
+        if (!fgets(bom, 4, f) || !*bom) {
+            fclose(f);
+            return ok;
+        }
+        if (!(bom[0] == char(0xEF) && bom[1] == char(0xBB) && bom[2] == char(0xBF))) {
+            rewind(f);
+        }
 		char buf[1024];
 		while(fgets(buf, sizeof(buf), f) && *buf)
 		{
@@ -1352,17 +1360,184 @@ bool ImportSubRipFile(const char* _fn)
 	return ok;
 }
 
+// see http://moodub.free.fr/video/ass-specs.doc
+bool ImportAdvancedSubStationFile(const char* _fn)
+{
+    bool ok = false;
+    double firstPos = -1.0;
+
+    // no need to check extension here, it's done for us
+    if (FILE* f = fopenUTF8(_fn, "rt"))
+    {
+        char bom[4];
+        if (!fgets(bom, 4, f) || !*bom) {
+            fclose(f);
+            return ok;
+        }
+        if (!(bom[0] == char(0xEF) && bom[1] == char(0xBB) && bom[2] == char(0xBF))) {
+            rewind(f);
+        }
+        char buf[1024];
+        while(fgets(buf, sizeof(buf), f) && *buf) // searching for Events block
+        {
+            if (strncmp(buf, "[Events]", 8) == 0) // searching for events block, we don't care about styles and stuff
+            {
+                break;
+            }
+        }
+        if (!(fgets(buf, sizeof(buf), f) && *buf))
+            return false; // reading and discarding format line, we're only interested in fields that are fixed
+
+        while(fgets(buf, sizeof(buf), f) && *buf) // reading events
+        {
+            int p1[2], p2[2];
+            float sec1, sec2;
+            int i = 0, j = 0;
+            string s;
+            char tokens[10][64];
+            while (buf[i] != '\0' && j < 9) { // reading event fields in this dumb way because sscanf doesn't work
+                if (buf[i] != ',')  // basically like python's buf.split(',', maxsplit=9)
+                {
+                    s += buf[i];
+                }
+                else
+                {
+                    strcpy(tokens[j], s.c_str());
+                    j++;
+                    s = "";
+                }
+                i++;
+            }
+
+            if (sscanf(tokens[1], "%d:%d:%f",  // parsing start and end times
+                       &p1[0], &p1[1], &sec1) != 3)
+            {
+                break;
+            }
+            if (sscanf(tokens[2], "%d:%d:%f",
+                       &p2[0], &p2[1], &sec2) != 3)
+            {
+                break;
+            }
+
+            WDL_FastString notes;
+            if (strlen(tokens[4]) > 0) {
+                notes.Append("["); // placing the character name before the subtitle
+                notes.Append(tokens[4]);
+                notes.Append("] ");
+            }
+            char text[1024];
+            j = 0;
+
+            enum parseState {Normal, Escaped, InBrackets};
+            parseState ps = Normal;
+            for (; buf[i] != '\0'; i++) // dumb but fast way to filter out formatting blocks and properly format line break
+            {
+                switch (ps)
+                {
+                    case Escaped:
+                        switch (buf[i])
+                        {
+                            case 'n':
+                            case 'N':
+                                text[j] = '\n';
+                                j++;
+                                break;
+                            case 'h':
+                                text[j] = ' ';
+                                j++;
+                                break;
+                            default:
+                                text[j] = '\\';
+                                text[j+1] = buf[i];
+                                j += 2;
+                        }
+                        ps = Normal;
+                        break;
+                    case Normal:
+                        switch (buf[i])
+                        {
+                            case '\\':
+                                ps = Escaped;
+                                break;
+                            case '{':
+                                ps = InBrackets;
+                                break;
+                            default:
+                                text[j]=buf[i];
+                                j++;
+                        }
+                        break;
+                    case InBrackets:
+                        if (buf[i] == '}')
+                            ps = Normal;
+                        break;
+                }
+            }
+            text[j] = '\0';
+            notes.Append(text); // from here mostly the same as SRT
+
+            WDL_String name(notes.Get());
+            char *p=name.Get();
+            while (*p) {
+                if (*p == '\r' || *p == '\n') *p=' ';
+                p++;
+            }
+            name.Ellipsize(0, 64); // 64 = native max mkr/rgn name length
+            int num = AddProjectMarker(NULL, true,
+                                   float(p1[0])*3600 + float(p1[1])*60 + sec1,
+                                       float(p2[0])*3600 + float(p2[1])*60 + sec2,
+                                   name.Get(), -1);
+            if (num >= 0)
+            {
+                ok = true; // region added (at least)
+
+                if (firstPos < 0.0)
+                    firstPos = float(p1[0])*3600 + float(p1[1])*60 + sec1;
+
+                int id = MakeMarkerRegionId(num, true);
+                if (id > 0) // add the sub, no duplicate mgmt..
+                    g_pRegionSubs.Get()->Add(new SNM_RegionSubtitle(nullptr, id, notes.Get()));
+            }
+
+        }
+
+        fclose(f);
+    }
+
+    if (ok)
+    {
+        UpdateTimeline(); // redraw the ruler (andd arrange view)
+        if (firstPos > 0.0)
+            SetEditCurPos2(NULL, firstPos, true, false);
+    }
+    return ok;
+}
+
 void ImportSubTitleFile(COMMAND_T* _ct)
 {
 	if (char* fn = BrowseForFiles(__LOCALIZE("S&M - Import subtitle file","sws_DLG_152"), g_lastImportSubFn, NULL, false, SNM_SUB_EXT_LIST))
 	{
 		lstrcpyn(g_lastImportSubFn, fn, sizeof(g_lastImportSubFn));
-		if (ImportSubRipFile(fn))
-			//JFB hard-coded undo label: _ct might be NULL (when called from a button)
-			//    + avoid trailing "..." in undo point name (when called from an action)
-			Undo_OnStateChangeEx2(NULL, __LOCALIZE("Import subtitle file","sws_DLG_152"), UNDO_STATE_ALL, -1);
-		else
-			MessageBox(GetMainHwnd(), __LOCALIZE("Invalid subtitle file!","sws_DLG_152"), __LOCALIZE("S&M - Error","sws_DLG_152"), MB_OK);
+        char* ext = strrchr(fn, '.');
+
+        if (strcmp(ext, ".srt") == 0 || strcmp(ext, ".SRT") == 0) { // I don't know a cross-platform way to compare ignoring case in c++ so I'm checking only two cases
+            if (ImportSubRipFile(fn))
+                //JFB hard-coded undo label: _ct might be NULL (when called from a button)
+                //    + avoid trailing "..." in undo point name (when called from an action)
+                Undo_OnStateChangeEx2(NULL, __LOCALIZE("Import subtitle file","sws_DLG_152"), UNDO_STATE_ALL, -1);
+            else
+                MessageBox(GetMainHwnd(), __LOCALIZE("Invalid subtitle file!","sws_DLG_152"), __LOCALIZE("S&M - Error","sws_DLG_152"), MB_OK);
+        } else if (strcmp(ext, ".ass") == 0 || strcmp(ext, ".ASS") == 0) {
+            if (ImportAdvancedSubStationFile(fn))
+                //JFB hard-coded undo label: _ct might be NULL (when called from a button)
+                //    + avoid trailing "..." in undo point name (when called from an action)
+                Undo_OnStateChangeEx2(NULL, __LOCALIZE("Import ass file","sws_DLG_152"), UNDO_STATE_ALL, -1);
+            else
+                MessageBox(GetMainHwnd(), __LOCALIZE("Invalid ass file!","sws_DLG_152"), __LOCALIZE("S&M - Error","sws_DLG_152"), MB_OK);
+        } else {
+            MessageBox(GetMainHwnd(), __LOCALIZE("Invalid or unsupported file format!","sws_DLG_152"), __LOCALIZE("S&M - Error","sws_DLG_152"), MB_OK);
+        }
 		free(fn);
 	}
 }
@@ -1803,4 +1978,32 @@ void NF_DoUpdateSWSMarkerRegionSubWindow()
 		if (w->IsWndVisible() && g_notesType <= SNM_NOTES_MKRRGN_SUB && g_notesType >= SNM_NOTES_MKR_SUB)
 			w->ForceUpdateMkrRgnNameOrSub(g_notesType);
 	}
+}
+
+void NotesWnd::OnDroppedFiles(HDROP _h) {
+    int iFiles = DragQueryFile(_h, 0xFFFFFFFF, NULL, 0);
+    char fn[SNM_MAX_PATH] = "";
+    for (int i=0; i < iFiles; i++)
+    {
+        int n = DragQueryFile(_h, i, fn, sizeof(fn));
+        char* ext = strrchr(fn, '.');
+
+        if (strcmp(ext, ".srt") == 0 || strcmp(ext, ".SRT") == 0) {
+            if (ImportSubRipFile(fn))
+                //JFB hard-coded undo label: _ct might be NULL (when called from a button)
+                //    + avoid trailing "..." in undo point name (when called from an action)
+                Undo_OnStateChangeEx2(NULL, __LOCALIZE("Import subtitle file","sws_DLG_152"), UNDO_STATE_ALL, -1);
+            else
+                MessageBox(GetMainHwnd(), __LOCALIZE("Invalid subtitle file!","sws_DLG_152"), __LOCALIZE("S&M - Error","sws_DLG_152"), MB_OK);
+        } else if (strcmp(ext, ".ass") == 0 || strcmp(ext, ".ASS") == 0) {
+            if (ImportAdvancedSubStationFile(fn))
+                //JFB hard-coded undo label: _ct might be NULL (when called from a button)
+                //    + avoid trailing "..." in undo point name (when called from an action)
+                Undo_OnStateChangeEx2(NULL, __LOCALIZE("Import ass file","sws_DLG_152"), UNDO_STATE_ALL, -1);
+            else
+                MessageBox(GetMainHwnd(), __LOCALIZE("Invalid ass file!","sws_DLG_152"), __LOCALIZE("S&M - Error","sws_DLG_152"), MB_OK);
+        } else {
+            MessageBox(GetMainHwnd(), __LOCALIZE("Invalid or unsupported file format!","sws_DLG_152"), __LOCALIZE("S&M - Error","sws_DLG_152"), MB_OK);
+        }
+    }
 }
