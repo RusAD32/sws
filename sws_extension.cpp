@@ -140,7 +140,10 @@ bool hookCommandProc2(KbdSectionInfo* sec, int cmdId, int val, int valhw, int re
 	// Ignore commands that don't have anything to do with us from this point forward
 	if (COMMAND_T* cmd = SWSGetCommandByID(cmdId))
 	{
-		if (cmd->uniqueSectionId==sec->uniqueID && cmd->cmdId==cmdId)
+		int secId = sec->uniqueID;
+		if(secId == 100 || (secId >= 1 && secId <= 16)) // for REAPER 7.03+, alt-recording & alt-{1,16}
+			secId = 0;
+		if (cmd->uniqueSectionId==secId && cmd->cmdId==cmdId)
 		{
 			// job for hookCommandProc?
 			// note: we could perform cmd->doCommand() here, but we'd loose the "flag" param value
@@ -491,9 +494,9 @@ public:
 	const char *GetDescString() { return ""; }
 	const char *GetConfigString() { return ""; }
 
-	bool m_bChanged;
-	int m_iACIgnore, m_iExtColorEvents;
-	SWSTimeSlice() : m_bChanged(false), m_iACIgnore(0), m_iExtColorEvents(0) {}
+	bool m_bChanged, m_bAutoColorTrackAsync;
+	int m_iACIgnore;
+	SWSTimeSlice() : m_bChanged(false), m_bAutoColorTrackAsync(false), m_iACIgnore(0) {}
 
 	void Run() // BR: Removed some stuff from here and made it use plugin_register("timer"/"-timer") - it's the same thing as this but it enables us to remove unused stuff completely
 	{          // I guess we could do the rest too (and add user options to enable where needed)...
@@ -513,10 +516,11 @@ public:
 		// Preventing any possible edge cases where not all track data was set when
 		// the first CSURF_EXT_{SETFXCHANGE,SETINPUTMONITOR} notification is sent.
 		// Applying the AutoColor rules asynchronously on the next timer cycle (now).
-		if (m_iExtColorEvents > 1)
+		if (m_bAutoColorTrackAsync)
+		{
 			AutoColorTrack(false);
-
-		m_iExtColorEvents = 0;
+			m_bAutoColorTrackAsync = false;
+		}
 	}
 
 	void SetPlayState(bool play, bool pause, bool rec)
@@ -531,7 +535,7 @@ public:
 	void SetTrackListChange()
 	{
 		m_bChanged = true;
-		AutoColorTrack(false);
+		m_bAutoColorTrackAsync = true;
 		AutoColorMarkerRegion(false);
 		SNM_CSurfSetTrackListChange();
 		m_iACIgnore = GetNumTracks() + 1;
@@ -544,7 +548,7 @@ public:
 		ScheduleTracklistUpdate();
 		if (!m_iACIgnore)
 		{
-			AutoColorTrack(false);
+			m_bAutoColorTrackAsync = true;
 			SNM_CSurfSetTrackTitle();
 		}
 		else
@@ -581,8 +585,7 @@ public:
 			// All affected tracks appear to have been already updated when the first
 			// notification is sent. Run() will call AutoColorTrack again later just
 			// in case this isn't always true.
-			if (m_iExtColorEvents++ == 0)
-				AutoColorTrack(false);
+			m_bAutoColorTrackAsync = true;
 			break;
 		}
 
